@@ -395,11 +395,13 @@ static irqreturn_t smd_modem_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#if defined(CONFIG_QDSP6)
 static irqreturn_t smd_dsp_irq_handler(int irq, void *data)
 {
 	handle_smd_irq(&smd_ch_list_dsp, notify_dsp_smd);
 	return IRQ_HANDLED;
 }
+#endif
 
 static void smd_fake_irq_handler(unsigned long arg)
 {
@@ -571,6 +573,9 @@ static int smd_packet_read(smd_channel_t *ch, void *data, int len)
 
 static int smd_alloc_v2(struct smd_channel *ch)
 {
+#ifdef CONFIG_MSM_SMD_PKG3
+        return -1;
+#else
 	struct smd_shared_v2 *shared2;
 	void *buffer;
 	unsigned buffer_sz;
@@ -592,6 +597,7 @@ static int smd_alloc_v2(struct smd_channel *ch)
 	ch->recv_data = buffer + buffer_sz;
 	ch->fifo_size = buffer_sz;
 	return 0;
+#endif
 }
 
 static int smd_alloc_v1(struct smd_channel *ch)
@@ -1059,6 +1065,13 @@ extern void msm_init_last_radio_log(struct module *);
 static int msm_smd_probe(struct platform_device *pdev)
 {
 	pr_info("smd_init()\n");
+
+        /*
+         * If we haven't waited for the ARM9 to boot up till now,
+         * then we need to wait here. Otherwise this should just
+         * return immediately.
+         */
+        proc_comm_boot_wait();
 
 	INIT_WORK(&probe_work, smd_channel_probe_worker);
 
