@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.35.9
-# Tue Dec 28 20:44:21 2010
+# Tue Dec 28 21:10:17 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -284,7 +284,7 @@ CONFIG_MACH_HERO=y
 # CONFIG_HTC_35MM_JACK is not set
 CONFIG_HTC_BATTCHG=y
 CONFIG_HTC_BATTCHG_SMEM=y
-CONFIG_HTC_PWRSPLY=y
+# CONFIG_HTC_PWRSPLY is not set
 CONFIG_HTC_PWRSINK=y
 # CONFIG_HTC_POWER_COLLAPSE_MAGIC is not set
 # CONFIG_HTC_ONMODE_CHARGING is not set
