@@ -13,4 +13,16 @@ config SENSORS_MT9T013
 	help
 	 MT9T013 Camera Driver implemented by HTC.
 
+config SENSORS_BMA150
+        tristate "BMA150 G-sensor Driver"
+        depends on I2C
+        help
+         BMA150 G-sensor Driver implemented by HTC.
+
+config MICROP_I2C
+        tristate "MICROP Driver"
+        depends on I2C
+        help
+          HTC Microp-P support.
+
 endmenu

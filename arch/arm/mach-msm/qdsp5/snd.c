@@ -44,7 +44,8 @@ static struct snd_ctxt the_snd;
 #elif (CONFIG_MSM_AMSS_VERSION == 6220) || \
       (CONFIG_MSM_AMSS_VERSION == 6225)
 #define RPC_SND_VERS	0xaa2b1a44 /* 2854951492 */
-#elif CONFIG_MSM_AMSS_VERSION == 6350
+#elif (CONFIG_MSM_AMSS_VERSION == 6350) || \
+      (CONFIG_MSM_AMSS_VERSION == 6355)
 #define RPC_SND_VERS 	MSM_RPC_VERS(1,0)
 #endif
 

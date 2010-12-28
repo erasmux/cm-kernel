@@ -115,6 +115,7 @@ config MSM_AMSS_VERSION
 	default 6220 if MSM_AMSS_VERSION_6220
 	default 6225 if MSM_AMSS_VERSION_6225
 	default 6350 if MSM_AMSS_VERSION_6350
+	default 6355 if MSM_AMSS_VERSION_6355
         default 3200 if MSM_AMSS_VERSION_3200
 
 choice
@@ -137,8 +138,13 @@ choice
 
 	config MSM_AMSS_VERSION_6350
 		bool "6.3.50"
-         
-         config MSM_AMSS_VERSION_3200
+        select MSM_ADSP_PKG2
+
+        config MSM_AMSS_VERSION_6355
+                bool "6.3.55"
+        select MSM_ADSP_PKG2
+
+        config MSM_AMSS_VERSION_3200
  	        bool "3.2.00"
 endchoice
 
@@ -236,6 +242,11 @@ config MACH_SAPPHIRE
 	depends on ARCH_MSM7X00A
 	default y
 	bool "Sapphire"
+
+config MACH_HERO
+        depends on ARCH_MSM7X00A
+        default y
+        bool "Hero"
 
 config MACH_MAHIMAHI
 	depends on ARCH_QSD8X50
