@@ -23,7 +23,9 @@
 #include <mach/msm_rpcrouter.h>
 
 #define PM_LIBPROG	  0x30000061
-#if defined(CONFIG_ARCH_MSM7X30)
+#if defined(CONFIG_ARCH_MSM7X00A)
+#define PM_LIBVERS                             0x10001
+#elif defined(CONFIG_ARCH_MSM7X30)
 #define PM_LIBVERS        0x00030001
 #elif defined(CONFIG_MSM_LEGACY_7X00A_AMSS)
 #define PM_LIBVERS	  0xfb837d0b
