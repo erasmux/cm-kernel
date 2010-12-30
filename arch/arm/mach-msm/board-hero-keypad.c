@@ -309,7 +309,7 @@ static int __init hero_init_keypad(void)
 		hero_keypad_matrix_info.keymap = hero_keymap1;
 	}
 
-	if (hero_get_engineerid() == 3)
+	if (hero_engineerid() == 3)
 		hero_keypad_matrix_info.keymap = hero_keymap2_engin3;
 
 	if (platform_device_register(&hero_reset_keys_device))

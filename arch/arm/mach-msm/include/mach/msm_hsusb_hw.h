@@ -13,8 +13,8 @@
  *
  */
 
-#ifndef _USB_FUNCTION_MSM_HSUSB_HW_H
-#define _USB_FUNCTION_MSM_HSUSB_HW_H
+#ifndef __LINUX_USB_GADGET_MSM72K_UDC_H__
+#define __LINUX_USB_GADGET_MSM72K_UDC_H__
 
 /*-------------------------------------------------------------------------*/
 
@@ -51,9 +51,13 @@
 #define USB_HWDEVICE         (MSM_USB_BASE + 0x000C)
 #define USB_HWTXBUF          (MSM_USB_BASE + 0x0010)
 #define USB_HWRXBUF          (MSM_USB_BASE + 0x0014)
+
+#ifdef CONFIG_ARCH_MSM7X00A
+#define USB_SBUSCFG          (MSM_USB_BASE + 0x0090)
+#else
 #define USB_AHBBURST         (MSM_USB_BASE + 0x0090)
 #define USB_AHBMODE          (MSM_USB_BASE + 0x0098)
-#define USB_SBUSCFG          (MSM_USB_BASE + 0x0090)
+#endif
 
 #define USB_CAPLENGTH        (MSM_USB_BASE + 0x0100) /* 8 bit */
 #define USB_HCIVERSION       (MSM_USB_BASE + 0x0102) /* 16 bit */
@@ -135,14 +139,14 @@ struct ept_queue_item {
 #define INFO_TXN_ERROR        (1 << 3)
 
 
-#define STS_NAKI          (1 << 16)  /* */
-#define STS_SLI           (1 << 8)   /* R/WC - suspend state entered */
-#define STS_SRI           (1 << 7)   /* R/WC - SOF recv'd */
-#define STS_URI           (1 << 6)   /* R/WC - RESET recv'd - write to clear */
-#define STS_FRI           (1 << 3)   /* R/WC - Frame List Rollover */
-#define STS_PCI           (1 << 2)   /* R/WC - Port Change Detect */
-#define STS_UEI           (1 << 1)   /* R/WC - USB Error */
-#define STS_UI            (1 << 0)   /* R/WC - USB Transaction Complete */
+#define STS_NAKI              (1 << 16)  /* */
+#define STS_SLI               (1 << 8)   /* R/WC - suspend state entered */
+#define STS_SRI               (1 << 7)   /* R/WC - SOF recv'd */
+#define STS_URI               (1 << 6)   /* R/WC - RESET recv'd - write to clear */
+#define STS_FRI               (1 << 3)   /* R/WC - Frame List Rollover */
+#define STS_PCI               (1 << 2)   /* R/WC - Port Change Detect */
+#define STS_UEI               (1 << 1)   /* R/WC - USB Error */
+#define STS_UI                (1 << 0)   /* R/WC - USB Transaction Complete */
 
 
 /* bits used in all the endpoint status registers */
@@ -184,11 +188,21 @@ struct ept_queue_item {
 #define ULPI_DATA(n)          ((n) & 255)
 #define ULPI_DATA_READ(n)     (((n) >> 8) & 255)
 
+#define ULPI_DEBUG_REG        (0x15)
+#define ULPI_SCRATCH_REG      (0x16)
+
+#define ULPI_FUNC_CTRL_CLR    (0x06)
+#define   ULPI_FUNC_SUSPENDM  (1 << 6)
+
+
 /* USB_PORTSC bits for determining port speed */
 #define PORTSC_PSPD_FS        (0 << 26)
 #define PORTSC_PSPD_LS        (1 << 26)
 #define PORTSC_PSPD_HS        (2 << 26)
 #define PORTSC_PSPD_MASK      (3 << 26)
+/* suspend and remote wakeup */
+#define PORTSC_FPR             (1 << 6)
+#define PORTSC_SUSP            (1 << 7)
 
 #define OTGSC_BSVIE            (1 << 27) /* R/W - BSV Interrupt Enable */
 #define OTGSC_DPIE             (1 << 30) /* R/W - DataPulse Interrupt Enable */
@@ -198,28 +212,15 @@ struct ept_queue_item {
 #define OTGSC_ASEIE            (1 << 25) /* R/W - ASE Interrupt Enable */
 #define OTGSC_IDIE             (1 << 24) /* R/W - ID Interrupt Enable */
 #define OTGSC_BSVIS            (1 << 19) /* R/W - BSV Interrupt Status */
-#define OTGSC_IDPU	       (1 << 5)
+#define OTGSC_IDPU             (1 << 5)
 #define OTGSC_ID               (1 << 8)
 #define OTGSC_IDIS             (1 << 16)
 #define B_SESSION_VALID        (1 << 11)
 #define OTGSC_INTR_MASK        (OTGSC_BSVIE | OTGSC_DPIE | OTGSC_1MSE | \
-				OTGSC_BSEIE | OTGSC_ASVIE | OTGSC_ASEIE | \
-				OTGSC_IDIE)
+                                OTGSC_BSEIE | OTGSC_ASVIE | OTGSC_ASEIE | \
+                                OTGSC_IDIE)
 #define OTGSC_INTR_STS_MASK    (0x7f << 16)
 #define CURRENT_CONNECT_STATUS (1 << 0)
-
-#define PORTSC_FPR             (1 << 6)  /* R/W - State normal => suspend */
-#define PORTSC_SUSP            (1 << 7)  /* Read - Port in suspend state */
-#define PORTSC_LS              (3 << 10) /* Read - Port's Line status */
-#define PORTSC_PHCD            (1 << 23) /* phy suspend mode */
-#define PORTSC_CCS             (1 << 0)  /* current connect status */
-#define PORTSC_PORT_RESET      0x00000100
-#define PORTSC_PTS              (3 << 30)
-#define PORTSC_PTS_ULPI         (2 << 30)
-#define PORTSC_PTS_SERIAL       (3 << 30)
-/* suspend and remote wakeup */
-#define PORTSC_FPR             (1 << 6)
-#define PORTSC_SUSP            (1 << 7)
 
 /* test mode support */
 #define J_TEST			(0x0100)
@@ -232,7 +233,18 @@ struct ept_queue_item {
 #define PORTSC_PTC_SE0_NAK	(0x03 << 16)
 #define PORTSC_PTC_TST_PKT	(0x04 << 16)
 
+#define PORTSC_PTS_MASK       (3 << 30)
+#define PORTSC_PTS_ULPI       (2 << 30)
+#define PORTSC_PTS_SERIAL     (3 << 30)
+
+#define PORTSC_CCS             (1 << 0)  /* current connect status */
+#define PORTSC_FPR             (1 << 6)  /* R/W - State normal => suspend */
+#define PORTSC_SUSP            (1 << 7)  /* Read - Port in suspend state */
+#define PORTSC_PORT_RESET      (1 << 8)
+#define PORTSC_LS              (3 << 10) /* Read - Port's Line status */
+#define PORTSC_PHCD            (1 << 23) /* phy suspend mode */
+
 #define ULPI_DEBUG               0x15
-#define ULPI_FUNC_CTRL_CLR       0x06
 #define ULPI_SUSPENDM            (1 << 6)
-#endif /* _USB_FUNCTION_MSM_HSUSB_HW_H */
+
+#endif /* __LINUX_USB_GADGET_MSM72K_UDC_H__ */

@@ -1,6 +1,6 @@
-/*
- * Copyright (C) 2009 Google, Inc.
- * Copyright (C) 2009 HTC Corporation.
+/* linux/arch/arm/mach-msm/board-hero-rfkill.c
+ * Copyright (C) 2007-2009 HTC Corporation.
+ * Author: Thomas Tsai <thomas_tsai@htc.com>
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -10,7 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
 */
 
 /* Control bluetooth power for hero platform */
@@ -20,132 +19,27 @@
 #include <linux/device.h>
 #include <linux/rfkill.h>
 #include <linux/delay.h>
-#include <asm/gpio.h>
+#include <linux/gpio.h>
 #include <asm/mach-types.h>
-
-#include "proc_comm.h"
-#include "board-hero.h"
 #include "gpio_chip.h"
-
-extern int hero_bt_fastclock_power(int on);
+#include "board-hero.h"
 
 static struct rfkill *bt_rfk;
-static const char bt_name[] = "brf6350";
+static const char bt_name[] = "brf6300";
 
-static int hero_bt_status;
-
-static uint32_t hero_bt_init_table[] = {
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_RTS, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA),	/* BT_RTS */
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_CTS, 0, GPIO_INPUT, GPIO_NO_PULL, GPIO_8MA),	/* BT_CTS */
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_RX, 0, GPIO_INPUT, GPIO_NO_PULL, GPIO_8MA),		/* BT_RX */
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_TX, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA),	/* BT_TX */
-	
-	PCOM_GPIO_CFG(HERO_GPIO_WB_SHUT_DOWN_N, 0, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_8MA),		/* BT_ENABLE */
-};
-
-static uint32_t hero_bt_on_table[] = {
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_RTS, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA),	/* BT_RTS */
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_CTS, 2, GPIO_INPUT, GPIO_NO_PULL, GPIO_8MA),	/* BT_CTS */
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_RX, 2, GPIO_INPUT, GPIO_NO_PULL, GPIO_8MA),		/* BT_RX */
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_TX, 3, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA),	/* BT_TX */
-	
-	PCOM_GPIO_CFG(HERO_GPIO_WB_SHUT_DOWN_N, 0, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_8MA),		/* BT_ENABLE */
-};
-
-static uint32_t hero_bt_off_table[] = {
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_RTS, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA),	/* BT_RTS */
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_CTS, 2, GPIO_INPUT, GPIO_NO_PULL, GPIO_8MA),	/* BT_CTS */
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_RX, 2, GPIO_INPUT, GPIO_NO_PULL, GPIO_8MA),		/* BT_RX */
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_TX, 3, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA),	/* BT_TX */
-	
-	PCOM_GPIO_CFG(HERO_GPIO_WB_SHUT_DOWN_N, 0, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_8MA),		/* BT_ENABLE */
-};
-
-static uint32_t hero_bt_disable_active_table[] = {
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_RTS, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA),	/* BT_RTS */
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_CTS, 2, GPIO_INPUT, GPIO_NO_PULL, GPIO_8MA),	/* BT_CTS */
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_RX, 2, GPIO_INPUT, GPIO_NO_PULL, GPIO_8MA),		/* BT_RX */
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_TX, 3, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA),	/* BT_TX */
-};
-
-static uint32_t hero_bt_disable_sleep_table[] = {
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_RTS, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA),	/* O(L) */
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_CTS, 0, GPIO_INPUT, GPIO_PULL_UP, GPIO_8MA),	/* I(PU) */
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_RX, 0, GPIO_INPUT, GPIO_PULL_UP, GPIO_8MA),		/* I(PU) */
-	PCOM_GPIO_CFG(HERO_GPIO_UART1_TX, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA),	/* O(H) */
-};
-
-static void config_bt_table(uint32_t *table, int len)
-{
-	int n;
-	unsigned id;
-	for(n = 0; n < len; n++) {
-		id = table[n];
-		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &id, 0);
-	}
-}
-
-static void hero_config_bt_init(void)
-{
-	hero_bt_status = 0;
-	config_bt_table(hero_bt_init_table, ARRAY_SIZE(hero_bt_init_table));
-	mdelay(5);
-	gpio_configure(HERO_GPIO_WB_SHUT_DOWN_N, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
-}
-
-static void hero_config_bt_on(void)
-{
-	config_bt_table(hero_bt_on_table, ARRAY_SIZE(hero_bt_on_table));
-	mdelay(2);
-
-	gpio_configure(HERO_GPIO_WB_SHUT_DOWN_N,
-			GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
-	mdelay(15);
-	gpio_configure(HERO_GPIO_WB_SHUT_DOWN_N,
-			GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
-	mdelay(1);
-	gpio_configure(HERO_GPIO_WB_SHUT_DOWN_N,
-			GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
-	mdelay(1);
-
-	hero_bt_fastclock_power(1);
-	mdelay(2);
-	hero_bt_status = 1;
-}
-
-static void hero_config_bt_off(void)
-{
-	gpio_configure(HERO_GPIO_WB_SHUT_DOWN_N, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
-	hero_bt_fastclock_power(0);
-	config_bt_table(hero_bt_off_table, ARRAY_SIZE(hero_bt_off_table));
-	mdelay(5);
-	hero_bt_status = 0;
-}
-
-void hero_config_bt_disable_active(void)
-{	
-	config_bt_table(hero_bt_disable_active_table, ARRAY_SIZE(hero_bt_disable_active_table));
-}
-
-void hero_config_bt_disable_sleep(void)
-{
-	config_bt_table(hero_bt_disable_sleep_table, ARRAY_SIZE(hero_bt_disable_sleep_table));
-	mdelay(5);
-	gpio_configure(HERO_GPIO_UART1_RTS, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);	/* O(L) */
-	gpio_configure(HERO_GPIO_UART1_TX, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);	/* O(H) */
-}
-
-int hero_is_bluetooth_off(void)
-{
-	return !hero_bt_status;	//ON:1, OFF:0
-}
+extern int hero_bt_fastclock_power(int on);
 
 static int bluetooth_set_power(void *data, bool blocked)
 {
 	if (!blocked) {
-		hero_config_bt_on();
+		hero_bt_fastclock_power(1);
+		gpio_set_value(HERO_GPIO_BT_32K_EN, 1);
+		udelay(10);
+		gpio_direction_output(101, 1);
 	} else {
-		hero_config_bt_off();
+		gpio_direction_output(101, 0);
+		gpio_set_value(HERO_GPIO_BT_32K_EN, 0);
+		hero_bt_fastclock_power(0);
 	}
 	return 0;
 }
@@ -154,14 +48,14 @@ static struct rfkill_ops hero_rfkill_ops = {
 	.set_block = bluetooth_set_power,
 };
 
-static int __init hero_rfkill_probe(struct platform_device *pdev)
+static int hero_rfkill_probe(struct platform_device *pdev)
 {
 	int rc = 0;
 	bool default_state = true;  /* off */
 
-	hero_config_bt_init();	/* bt gpio initial config */
+	rc = gpio_request(HERO_GPIO_BT_32K_EN, "rfkill");
+	rc = gpio_request(101, "rfkill");
 
-	//rfkill_set_default(RFKILL_TYPE_BLUETOOTH, default_state);
 	bluetooth_set_power(NULL, default_state);
 
 	bt_rfk = rfkill_alloc(bt_name, &pdev->dev, RFKILL_TYPE_BLUETOOTH,
@@ -185,6 +79,9 @@ static int hero_rfkill_remove(struct platform_device *dev)
 	rfkill_unregister(bt_rfk);
 	rfkill_destroy(bt_rfk);
 
+	gpio_free(HERO_GPIO_BT_32K_EN);
+	gpio_free(101);
+
 	return 0;
 }
 
@@ -199,8 +96,6 @@ static struct platform_driver hero_rfkill_driver = {
 
 static int __init hero_rfkill_init(void)
 {
-	if (!machine_is_hero())
-		return 0;
 	return platform_driver_register(&hero_rfkill_driver);
 }
 

@@ -1,6 +1,6 @@
-/* linux/arch/arm/mach-msm7201a/board-hero-mmc.c
- *
- * Copyright (C) 2008 HTC Corporation.
+/* linux/arch/arm/mach-msm/board-hero-mmc.c
+ * Copyright (C) 2007-2009 HTC Corporation.
+ * Author: Thomas Tsai <thomas_tsai@htc.com>
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -10,7 +10,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- */
+*/
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -20,22 +20,23 @@
 #include <linux/mmc/sdio_ids.h>
 #include <linux/err.h>
 #include <linux/debugfs.h>
-#include <linux/irq.h>
-#include <linux/gpio.h>
 
-#include <asm/io.h>
-#include <asm/mach/mmc.h>
+#include <linux/gpio.h>
+#include <linux/io.h>
+#include <asm/mach-types.h>
 
 #include <mach/vreg.h>
-#include <mach/board_htc.h>
 #include <mach/htc_pwrsink.h>
 
-#include "proc_comm.h"
+#include <asm/mach/mmc.h>
+
+#include "devices.h"
+#include "gpio_chip.h"
 #include "board-hero.h"
+#include "proc_comm.h"
 
-#define DEBUG_SDSLOT_VDD 1
+#define DEBUG_SDSLOT_VDD 0
 
-/* r porting 29 */
 extern int msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat,
 			unsigned int stat_irq, unsigned long stat_irq_flags);
 
@@ -79,9 +80,17 @@ struct mmc_vdd_xlat {
 };
 
 static struct mmc_vdd_xlat mmc_vdd_table[] = {
-	{ MMC_VDD_27_28,	2800 },
+	{ MMC_VDD_165_195,	1800 },
+	{ MMC_VDD_20_21,	2050 },
+	{ MMC_VDD_21_22,	2150 },
+	{ MMC_VDD_22_23,	2250 },
+	{ MMC_VDD_23_24,	2350 },
+	{ MMC_VDD_24_25,	2450 },
+	{ MMC_VDD_25_26,	2550 },
+	{ MMC_VDD_26_27,	2650 },
+	{ MMC_VDD_27_28,	2750 },
 	{ MMC_VDD_28_29,	2850 },
-	{ MMC_VDD_29_30,	2900 },
+	{ MMC_VDD_29_30,	2950 },
 };
 
 static unsigned int sdslot_vdd = 0xffffffff;
@@ -89,7 +98,7 @@ static unsigned int sdslot_vreg_enabled;
 
 static uint32_t hero_sdslot_switchvdd(struct device *dev, unsigned int vdd)
 {
-	int i;
+	int i, rc;
 
 	BUG_ON(!vreg_sdslot);
 
@@ -100,7 +109,7 @@ static uint32_t hero_sdslot_switchvdd(struct device *dev, unsigned int vdd)
 
 	if (vdd == 0) {
 #if DEBUG_SDSLOT_VDD
-		printk("%s: Disabling SD slot power\n", __func__);
+		printk(KERN_DEBUG "%s: Disabling SD slot power\n", __func__);
 #endif
 		config_gpio_table(sdcard_off_gpio_table,
 				  ARRAY_SIZE(sdcard_off_gpio_table));
@@ -110,9 +119,11 @@ static uint32_t hero_sdslot_switchvdd(struct device *dev, unsigned int vdd)
 	}
 
 	if (!sdslot_vreg_enabled) {
-		mdelay(5);
-		vreg_enable(vreg_sdslot);
-		udelay(500);
+		rc = vreg_enable(vreg_sdslot);
+		if (rc) {
+			printk(KERN_ERR "%s: Error enabling vreg (%d)\n",
+			       __func__, rc);
+		}
 		config_gpio_table(sdcard_on_gpio_table,
 				  ARRAY_SIZE(sdcard_on_gpio_table));
 		sdslot_vreg_enabled = 1;
@@ -121,10 +132,16 @@ static uint32_t hero_sdslot_switchvdd(struct device *dev, unsigned int vdd)
 	for (i = 0; i < ARRAY_SIZE(mmc_vdd_table); i++) {
 		if (mmc_vdd_table[i].mask == (1 << vdd)) {
 #if DEBUG_SDSLOT_VDD
-			printk("%s: Setting level to %u\n",
-			        __func__, mmc_vdd_table[i].level);
+			printk(KERN_DEBUG "%s: Setting level to %u\n",
+				__func__, mmc_vdd_table[i].level);
 #endif
-			vreg_set_level(vreg_sdslot, mmc_vdd_table[i].level);
+			rc = vreg_set_level(vreg_sdslot,
+					    mmc_vdd_table[i].level);
+			if (rc) {
+				printk(KERN_ERR
+				       "%s: Error setting vreg level (%d)\n",
+				       __func__, rc);
+			}
 			return 0;
 		}
 	}
@@ -138,12 +155,13 @@ static unsigned int hero_sdslot_status(struct device *dev)
 	unsigned int status;
 
 	status = (unsigned int) gpio_get_value(HERO_GPIO_SDMC_CD_N);
-	return (!status);
+	return !status;
 }
 
-#define HERO_MMC_VDD	MMC_VDD_27_28 | MMC_VDD_28_29 | MMC_VDD_29_30
-
-static unsigned int hero_sdslot_type = MMC_TYPE_SD;
+#define HERO_MMC_VDD (MMC_VDD_165_195 | MMC_VDD_20_21 | MMC_VDD_21_22 \
+			| MMC_VDD_22_23 | MMC_VDD_23_24 | MMC_VDD_24_25 \
+			| MMC_VDD_25_26 | MMC_VDD_26_27 | MMC_VDD_27_28 \
+			| MMC_VDD_28_29 | MMC_VDD_29_30)
 
 static struct mmc_platform_data hero_sdslot_data = {
 	.ocr_mask	= HERO_MMC_VDD,
@@ -174,12 +192,11 @@ static uint32_t wifi_off_gpio_table[] = {
 };
 
 static struct vreg *vreg_wifi_osc;	/* WIFI 32khz oscilator */
-static int hero_wifi_cd = 0;		/* WIFI virtual 'card detect' status */
-static struct vreg *vreg_wifi_batpa;	/* WIFI main power */
+static int hero_wifi_cd = 0;	/* WIFI virtual 'card detect' status */
 
 static struct sdio_embedded_func wifi_func = {
-	.f_class 	= SDIO_CLASS_WLAN,
-	.f_maxblksize   = 512,
+	.f_class	= SDIO_CLASS_WLAN,
+	.f_maxblksize	= 512,
 };
 
 static struct embedded_sdio_data hero_wifi_emb_data = {
@@ -187,7 +204,6 @@ static struct embedded_sdio_data hero_wifi_emb_data = {
 		.vendor		= 0x104c,
 		.device		= 0x9066,
 		.blksize	= 512,
-		/*.max_dtr	= 24000000,  Max of chip - no worky on Trout */
 		.max_dtr	= 20000000,
 	},
 	.cccr	= {
@@ -204,7 +220,9 @@ static struct embedded_sdio_data hero_wifi_emb_data = {
 static void (*wifi_status_cb)(int card_present, void *dev_id);
 static void *wifi_status_cb_devid;
 
-static int hero_wifi_status_register(void (*callback)(int card_present, void *dev_id), void *dev_id)
+static int hero_wifi_status_register(void (*callback)(int card_present,
+							  void *dev_id),
+					 void *dev_id)
 {
 	if (wifi_status_cb)
 		return -EAGAIN;
@@ -218,23 +236,19 @@ static unsigned int hero_wifi_status(struct device *dev)
 	return hero_wifi_cd;
 }
 
-static struct mmc_platform_data hero_wifi_data = {
-	.ocr_mask		= MMC_VDD_28_29,
-	.status			= hero_wifi_status,
-	.register_status_notify	= hero_wifi_status_register,
-	.embedded_sdio		= &hero_wifi_emb_data,
-};
-
 int hero_wifi_set_carddetect(int val)
 {
-	printk("%s: %d\n", __func__, val);
+	printk(KERN_DEBUG "%s: %d\n", __func__, val);
 	hero_wifi_cd = val;
-	if (wifi_status_cb) {
+	if (wifi_status_cb)
 		wifi_status_cb(val, wifi_status_cb_devid);
-	} else
+	else
 		printk(KERN_WARNING "%s: Nobody to notify\n", __func__);
 	return 0;
 }
+#ifndef CONFIG_WIFI_CONTROL_FUNC
+EXPORT_SYMBOL(hero_wifi_set_carddetect);
+#endif
 
 int hero_wifi_power_state=0;
 int hero_bt_power_state=0;
@@ -243,17 +257,12 @@ int hero_wifi_power(int on)
 {
 	int rc;
 
-	printk("%s: %d\n", __func__, on);
+	printk(KERN_DEBUG "%s: %d\n", __func__, on);
 
 	if (on) {
 		config_gpio_table(wifi_on_gpio_table,
 				  ARRAY_SIZE(wifi_on_gpio_table));
-		vreg_enable(vreg_wifi_batpa);
-		vreg_set_level(vreg_wifi_batpa, 3000);
-		mdelay(50);
 		rc = vreg_enable(vreg_wifi_osc);
-		vreg_set_level(vreg_wifi_osc, 1800);
-		mdelay(50);
 		if (rc)
 			return rc;
 		htc_pwrsink_set(PWRSINK_WIFI, 70);
@@ -263,14 +272,13 @@ int hero_wifi_power(int on)
 		htc_pwrsink_set(PWRSINK_WIFI, 0);
 	}
 
-	gpio_set_value( HERO_GPIO_WIFI_EN, on);
+	gpio_set_value(HERO_GPIO_WIFI_EN, on);
 	mdelay(100);
-
 	if (!on) {
 		if(!hero_bt_power_state)
 		{
-			vreg_disable(vreg_wifi_osc);
-			vreg_disable(vreg_wifi_batpa);
+		vreg_disable(vreg_wifi_osc);
+			printk("WiFi disable vreg_wifi_osc.\n");
 		}
 		else
 			printk("WiFi shouldn't disable vreg_wifi_osc. BT is using it!!\n");
@@ -278,28 +286,31 @@ int hero_wifi_power(int on)
 	hero_wifi_power_state = on;
 	return 0;
 }
+#ifndef CONFIG_WIFI_CONTROL_FUNC
+EXPORT_SYMBOL(hero_wifi_power);
+#endif
 
 /* Eenable VREG_MMC pin to turn on fastclock oscillator : colin */
 int hero_bt_fastclock_power(int on)
 {
 	int rc;
 
-	printk("%s: %d\n", __func__, on);
-
+	printk(KERN_DEBUG "hero_bt_fastclock_power on = %d\n", on);
 	if (vreg_wifi_osc) {
 		if (on) {
 			rc = vreg_enable(vreg_wifi_osc);
-			
-			if (rc)
-			{
-				printk("Error turn bt_fastclock_power rc=%d\n",rc);
+			printk(KERN_DEBUG "BT vreg_enable vreg_mmc, rc=%d\n",
+			       rc);
+			if (rc) {
+				printk("Error turn hero_bt_fastclock_power rc=%d\n", rc);
 				return rc;
 			}
 		} else {
-			if(!hero_wifi_power_state)
-			{
+			if (!hero_wifi_power_state) {
 				vreg_disable(vreg_wifi_osc);
-			}
+				printk(KERN_DEBUG "BT disable vreg_wifi_osc.\n");
+			} else
+				printk(KERN_DEBUG "BT shouldn't disable vreg_wifi_osc. WiFi is using it!!\n");
 		}
 	}
 	hero_bt_power_state = on;
@@ -308,48 +319,156 @@ int hero_bt_fastclock_power(int on)
 EXPORT_SYMBOL(hero_bt_fastclock_power);
 
 static int hero_wifi_reset_state;
-int hero_wifi_reset(int on)
+void hero_wifi_reset(int on)
 {
-	printk("%s: %d\n", __func__, on);
+	printk(KERN_DEBUG "%s: %d\n", __func__, on);
 	/* HRRO use power off/on instead wifi reset*/
 	hero_wifi_reset_state = on;
 	//mdelay(50);
-	return 0;
 }
+#ifndef CONFIG_WIFI_CONTROL_FUNC
+EXPORT_SYMBOL(hero_wifi_reset);
+#endif
+
+static struct mmc_platform_data hero_wifi_data = {
+	.ocr_mask		= MMC_VDD_28_29,
+	.status			= hero_wifi_status,
+	.register_status_notify	= hero_wifi_status_register,
+	.embedded_sdio		= &hero_wifi_emb_data,
+};
 
 int __init hero_init_mmc(unsigned int sys_rev)
 {
 	wifi_status_cb = NULL;
-
-	vreg_wifi_osc = vreg_get(0, "rftx");
-	if (IS_ERR(vreg_wifi_osc))
-		return PTR_ERR(vreg_wifi_osc);
-	vreg_set_level(vreg_wifi_osc, 1800);
-
-	vreg_wifi_batpa = vreg_get(0, "wlan");
-	if (IS_ERR(vreg_wifi_batpa))
-		return PTR_ERR(vreg_wifi_batpa);
-
-	msm_add_sdcc(1, &hero_wifi_data, 0, 0); /* r porting 29: change func*/
-
-	if (opt_disable_sdcard) {
-		printk(KERN_INFO "%s: SD-Card interface disabled\n", __func__);
-		goto done;
-	}
 
 	sdslot_vreg_enabled = 0;
 
 	vreg_sdslot = vreg_get(0, "gp6");
 	if (IS_ERR(vreg_sdslot))
 		return PTR_ERR(vreg_sdslot);
+	vreg_wifi_osc = vreg_get(0, "mmc");
+	if (IS_ERR(vreg_wifi_osc))
+		return PTR_ERR(vreg_wifi_osc);
 
-	set_irq_wake(MSM_GPIO_TO_INT(HERO_GPIO_SDMC_CD_N), 1);
+	set_irq_wake(HERO_GPIO_TO_INT(HERO_GPIO_SDMC_CD_N), 1);
 
-	msm_add_sdcc(2, &hero_sdslot_data, HERO_GPIO_TO_INT(HERO_GPIO_SDMC_CD_N),
-		IORESOURCE_IRQ_LOWEDGE | IORESOURCE_IRQ_HIGHEDGE); /* r porting 29 */
+	msm_add_sdcc(1, &hero_wifi_data, 0, 0);
 
-done:
+	if (!opt_disable_sdcard)
+		msm_add_sdcc(2, &hero_sdslot_data,
+			     HERO_GPIO_TO_INT(HERO_GPIO_SDMC_CD_N), 0);
+	else
+		printk(KERN_INFO "hero: SD-Card interface disabled\n");
 	return 0;
 }
 
+#if defined(CONFIG_DEBUG_FS)
+static int herommc_dbg_wifi_reset_set(void *data, u64 val)
+{
+	hero_wifi_reset((int) val);
+	return 0;
+}
 
+static int herommc_dbg_wifi_reset_get(void *data, u64 *val)
+{
+	*val = hero_wifi_reset_state;
+	return 0;
+}
+
+static int herommc_dbg_wifi_cd_set(void *data, u64 val)
+{
+	hero_wifi_set_carddetect((int) val);
+	return 0;
+}
+
+static int herommc_dbg_wifi_cd_get(void *data, u64 *val)
+{
+	*val = hero_wifi_cd;
+	return 0;
+}
+
+static int herommc_dbg_wifi_pwr_set(void *data, u64 val)
+{
+	hero_wifi_power((int) val);
+	return 0;
+}
+
+static int herommc_dbg_wifi_pwr_get(void *data, u64 *val)
+{
+
+	*val = hero_wifi_power_state;
+	return 0;
+}
+
+static int herommc_dbg_sd_pwr_set(void *data, u64 val)
+{
+	hero_sdslot_switchvdd(NULL, (unsigned int) val);
+	return 0;
+}
+
+static int herommc_dbg_sd_pwr_get(void *data, u64 *val)
+{
+	*val = sdslot_vdd;
+	return 0;
+}
+
+static int herommc_dbg_sd_cd_set(void *data, u64 val)
+{
+	return -ENOSYS;
+}
+
+static int herommc_dbg_sd_cd_get(void *data, u64 *val)
+{
+	*val = hero_sdslot_status(NULL);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(herommc_dbg_wifi_reset_fops,
+			herommc_dbg_wifi_reset_get,
+			herommc_dbg_wifi_reset_set, "%llu\n");
+
+DEFINE_SIMPLE_ATTRIBUTE(herommc_dbg_wifi_cd_fops,
+			herommc_dbg_wifi_cd_get,
+			herommc_dbg_wifi_cd_set, "%llu\n");
+
+DEFINE_SIMPLE_ATTRIBUTE(herommc_dbg_wifi_pwr_fops,
+			herommc_dbg_wifi_pwr_get,
+			herommc_dbg_wifi_pwr_set, "%llu\n");
+
+DEFINE_SIMPLE_ATTRIBUTE(herommc_dbg_sd_pwr_fops,
+			herommc_dbg_sd_pwr_get,
+			herommc_dbg_sd_pwr_set, "%llu\n");
+
+DEFINE_SIMPLE_ATTRIBUTE(herommc_dbg_sd_cd_fops,
+			herommc_dbg_sd_cd_get,
+			herommc_dbg_sd_cd_set, "%llu\n");
+
+static int __init herommc_dbg_init(void)
+{
+	struct dentry *dent;
+
+	if (!machine_is_hero())
+		return 0;
+
+	dent = debugfs_create_dir("herommc_dbg", 0);
+	if (IS_ERR(dent))
+		return PTR_ERR(dent);
+
+	debugfs_create_file("wifi_reset", 0644, dent, NULL,
+			    &herommc_dbg_wifi_reset_fops);
+	debugfs_create_file("wifi_cd", 0644, dent, NULL,
+			    &herommc_dbg_wifi_cd_fops);
+	debugfs_create_file("wifi_pwr", 0644, dent, NULL,
+			    &herommc_dbg_wifi_pwr_fops);
+
+	debugfs_create_file("sd_pwr", 0644, dent, NULL,
+			    &herommc_dbg_sd_pwr_fops);
+	debugfs_create_file("sd_cd", 0644, dent, NULL,
+			    &herommc_dbg_sd_cd_fops);
+
+	return 0;
+}
+
+device_initcall(herommc_dbg_init);
+
+#endif
