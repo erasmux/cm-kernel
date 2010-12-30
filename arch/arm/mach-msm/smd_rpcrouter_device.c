@@ -298,7 +298,9 @@ int msm_rpcrouter_create_server_pdev(struct rr_server *server)
 	sprintf(server->pdev_name, "rs%.8x:%.8x",
 		server->prog,
 #if !defined(CONFIG_MSM_LEGACY_7X00A_AMSS)
-		(server->vers & RPC_VERSION_MODE_MASK) ? server->vers :
+		(server->vers & RPC_VERSION_MODE_MASK ||
+                 server->prog==0x3000000a || server->prog==0x3000000b) ? // fix for qdsp on hero
+                server->vers :
 		(server->vers & RPC_VERSION_MAJOR_MASK));
 #else
 		server->vers);
