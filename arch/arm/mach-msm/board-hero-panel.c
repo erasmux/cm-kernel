@@ -30,7 +30,6 @@
 #include <mach/vreg.h>
 #include <mach/board.h>
 #include <mach/board_htc.h>
-//#include <mach/pmic.h>
 
 #include "proc_comm.h"
 #include "board-hero.h"
@@ -711,15 +710,15 @@ int __init hero_init_panel(void)
 
 		/* Hero enable CABC criteria:
 		 * engineer id > 0, board > XC */
-//		if (engineer_id || system_rev > 2) {
+		if (engineer_id || system_rev > 2) {
 			panel_data->caps |= MSMFB_CAP_CABC;
-//		} else {
-//			printk(KERN_DEBUG "CABC will not work on older board, "
-//					"engineer_id = %d\n", engineer_id);
-//		}
-//	} else {
-//		printk(KERN_ERR "unknown panel type!\n");
-//		return -EIO;
+		} else {
+			printk(KERN_DEBUG "CABC will not work on older board, "
+					"engineer_id = %d\n", engineer_id);
+		}
+	} else {
+		printk(KERN_ERR "unknown panel type!\n");
+		return -EIO;
 	}
 
 	rc = platform_device_register(&msm_device_mdp);

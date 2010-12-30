@@ -111,14 +111,3 @@ int register_gpio_chip(struct old_gpio_chip *new_gpio_chip)
 
 	return gpiochip_add(&new_gpio_chip->gpio_chip);
 }
-
-void config_gpio_table(uint32_t *table, int len)
-{
-	int n;
-	unsigned id;
-	for (n = 0; n < len; n++) {
-		id = table[n];
-		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &id, 0);
-	}
-}
-EXPORT_SYMBOL(config_gpio_table);
