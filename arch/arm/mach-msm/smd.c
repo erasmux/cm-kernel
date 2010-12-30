@@ -33,6 +33,7 @@
 #include <mach/system.h>
 
 #include "smd_private.h"
+#include "smd_debug.h"
 #include "proc_comm.h"
 
 #if defined(CONFIG_ARCH_QSD8X50)
