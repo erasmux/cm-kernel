@@ -71,7 +71,7 @@ struct wifi_platform_data hero_wifi_control = {
 #endif
 };
 
-static struct platform_device hero_wifi = {
+static struct platform_device wifi_ctrl_dev = {
 	.name		= "msm_wifi",
 	.id		= 1,
 	.num_resources	= 0,
@@ -88,17 +88,14 @@ static int __init hero_wifi_init(void)
 	printk("%s: start\n", __func__);
 
 #ifdef CONFIG_WIFI_MEM_PREALLOC
-	int rc = hero_init_wifi_mem();
-	if (rc) {
-		printk(KERN_CRIT "%s: WiFi memory init failure (%d)\n",
-		       __func__, rc);
-	}
+	hero_init_wifi_mem();
 #endif
 
-	ret = platform_device_register(&hero_wifi);
+	ret = platform_device_register(&wifi_ctrl_dev);
 	return ret;
 }
 
 
 late_initcall(hero_wifi_init);
 #endif
+

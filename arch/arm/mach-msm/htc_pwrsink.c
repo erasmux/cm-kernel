@@ -202,23 +202,23 @@ void htc_pwrsink_suspend_early(struct early_suspend *h)
 	htc_pwrsink_set(PWRSINK_SYSTEM_LOAD, 7);
 }
 
-int htc_pwrsink_suspend_late(struct device *dev)
+int htc_pwrsink_suspend_late(struct platform_device *pdev, pm_message_t state)
 {
-	struct pwr_sink_platform_data *pdata = dev_get_platdata(dev);
+	struct pwr_sink_platform_data *pdata = pdev->dev.platform_data;
 
 	if (pdata && pdata->suspend_late)
-		pdata->suspend_late(to_platform_device(dev), PMSG_SUSPEND);
+		pdata->suspend_late(pdev, state);
 	else
 		htc_pwrsink_set(PWRSINK_SYSTEM_LOAD, 1);
 	return 0;
 }
 
-int htc_pwrsink_resume_early(struct device *dev)
+int htc_pwrsink_resume_early(struct platform_device *pdev)
 {
-	struct pwr_sink_platform_data *pdata = dev_get_platdata(dev);;
+	struct pwr_sink_platform_data *pdata = pdev->dev.platform_data;
 
 	if (pdata && pdata->resume_early)
-		pdata->resume_early(to_platform_device(dev));
+		pdata->resume_early(pdev);
 	else
 		htc_pwrsink_set(PWRSINK_SYSTEM_LOAD, 7);
 	return 0;
