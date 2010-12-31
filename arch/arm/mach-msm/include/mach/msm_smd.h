@@ -19,6 +19,8 @@
 
 typedef struct smd_channel smd_channel_t;
 
+extern int (*msm_check_for_modem_crash)(void);
+
 /* warning: notify() may be called before open returns */
 int smd_open(const char *name, smd_channel_t **ch, void *priv,
 	     void (*notify)(void *priv, unsigned event));
@@ -54,6 +56,7 @@ int smd_cur_packet_size(smd_channel_t *ch);
 */
 void smd_kick(smd_channel_t *ch);
 
+
 #if 0
 /* these are interruptable waits which will block you until the specified
 ** number of bytes are readable or writable.
@@ -61,10 +64,8 @@ void smd_kick(smd_channel_t *ch);
 int smd_wait_until_readable(smd_channel_t *ch, int bytes);
 int smd_wait_until_writable(smd_channel_t *ch, int bytes);
 #endif
-int smd_wait_until_opened(smd_channel_t *ch, int timeout_us);
 
-typedef enum
-{
+typedef enum {
 	SMD_PORT_DS = 0,
 	SMD_PORT_DIAG,
 	SMD_PORT_RPC_CALL,
@@ -105,18 +106,11 @@ typedef enum
 	SMD_NUM_PORTS,
 } smd_port_id_type;
 
-#if defined(CONFIG_MSM_N_WAY_SMD)
-enum
-{
-	SMD_APPS_MODEM = 0,
-	SMD_APPS_QDSP,
-	SMD_MODEM_QDSP
+struct smd_tty_channel_desc {
+	int id;
+	const char *name;
 };
-#else
-enum
-{
-	SMD_APPS_MODEM = 0
-};
-#endif
+
+int smd_set_channel_list(const struct smd_tty_channel_desc *, int len);
 
 #endif
