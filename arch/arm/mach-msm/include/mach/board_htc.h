@@ -90,7 +90,7 @@ void board_get_cid_tag(char **);
 void board_get_carrier_tag(char **);
 void board_get_mid_tag(char **);
 
-void notify_usb_connected(int online);
+//void notify_usb_connected(int online);
 
 char *board_serialno(void);
 

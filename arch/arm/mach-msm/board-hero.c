@@ -67,6 +67,27 @@ static unsigned int hwid = 0;
 static unsigned int skuid = 0;
 static unsigned int engineerid = 0;
 
+extern ssize_t htc_battery_show_attr(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf);
+static struct htc_battery_platform_data htc_battery_pdev_data = {
+	.func_show_batt_attr = htc_battery_show_attr,
+/*	.gpio_mbat_in = HERO_GPIO_MBAT_IN,*/
+/*	.gpio_mchg_en_n = HERO_GPIO_MCHG_EN_N,*/
+/*	.gpio_iset = HERO_GPIO_ISET,*/
+	.guage_driver = GUAGE_MODEM,
+	.charger = LINEAR_CHARGER,
+	.m2a_cable_detect = 1,
+};
+
+static struct platform_device htc_battery_pdev = {
+	.name = "htc_battery",
+	.id = -1,
+	.dev	= {
+		.platform_data = &htc_battery_pdev_data,
+	},
+};
+
 unsigned int hero_get_hwid(void)
 {
 	return hwid;
@@ -873,6 +894,7 @@ static struct msm_i2c_device_platform_data hero_i2c_device_data = {
 
 static struct platform_device *devices2[] __initdata = {
 	&msm_device_i2c,
+	&htc_battery_pdev,
 	&hero_h2w_xe,
 	&hero_rfkill,
 #ifdef CONFIG_HTC_PWRSINK
@@ -883,6 +905,7 @@ static struct platform_device *devices2[] __initdata = {
 
 static struct platform_device *devices1[] __initdata = {
 	&msm_device_i2c,
+	&htc_battery_pdev,
 	&hero_h2w_xc,
 	&hero_rfkill,
 #ifdef CONFIG_HTC_PWRSINK
@@ -893,6 +916,7 @@ static struct platform_device *devices1[] __initdata = {
 
 static struct platform_device *devices0[] __initdata = {
 	&msm_device_i2c,
+	&htc_battery_pdev,
 	&hero_h2w,
 	&hero_rfkill,
 #ifdef CONFIG_HTC_PWRSINK
